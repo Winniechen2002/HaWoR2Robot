@@ -211,6 +211,7 @@ def run_vis2_on_video_cam(res_dict, res_dict2, output_pth, focal_length, image_n
     batch = (meshes, data)
 
     viewer = viewer_utils.ARCTICViewer(interactive=True, size=(vis_w, vis_h))
+    print("Rendering video...")
     viewer.render_seq(batch, out_folder=os.path.join(output_pth, 'aitviewer'))
 
 def lookat_matrix(source_pos, target_pos, up):

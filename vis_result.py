@@ -21,16 +21,20 @@ np.complex = complex
 np.object = object
 np.unicode = np.unicode_
 
+import genesis as gs
 
 def viz_hand_object(robots: Optional[Tuple[RobotName]], args, fps: int):
     # for x in range(16, 21):
     dataset = HaWoRDataset(args)
     if robots is None:
-        viewer = HandViewer(dataset, headless=True)
+        viewer = HandViewer(dataset, headless=True, simulator=args.simulator)
     else:
-        viewer = RobotViewer(dataset, list(robots), headless=True)
+        viewer = RobotViewer(dataset, list(robots), headless=True, simulator=args.simulator)
 
-    viewer.render_dexycb_data(fps)
+    if args.viewer == 'sapien':
+        viewer.render_dexycb_data(fps)
+    else:
+        viewer.render_viewer()
 
 
 def main(
@@ -40,7 +44,9 @@ def main(
     video_path: str = 'example/video_0.mp4',
     input_type: str = 'file',
     checkpoint: str = './weights/hawor/checkpoints/hawor.ckpt',
-    infiller_weight: str = './weights/hawor/checkpoints/infiller.pt'
+    infiller_weight: str = './weights/hawor/checkpoints/infiller.pt',
+    viewer: str = 'sapien',
+    simulator: str = 'sapien',
 ):
     """
     Render the human and robot trajectories for grasping object inside DexYCB dataset.
@@ -53,8 +59,13 @@ def main(
     args.input_type = input_type
     args.checkpoint = checkpoint
     args.infiller_weight = infiller_weight
+    args.viewer = viewer
+    args.simulator = simulator
 
-    robot_dir = "/home/cf24/dex-retargeting/assets/robots/hands"
+    if simulator == 'Genesis':
+        gs.init(backend=gs.gpu)   
+
+    robot_dir = "/home/winnie/dex-retargeting/assets/robots/hands"
     RetargetingConfig.set_default_urdf_dir(robot_dir)
 
     viz_hand_object(robots, args, fps)

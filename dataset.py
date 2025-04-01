@@ -73,6 +73,7 @@ class HaWoRDataset:
         right_verts = pred_glob_r['vertices'][0]
         right_dict = {
                 'vertices': right_verts.unsqueeze(0),
+                'joints': pred_glob_r['joints'][0].unsqueeze(0),
                 'faces': faces_right,
             }
 
@@ -84,23 +85,33 @@ class HaWoRDataset:
         left_verts = pred_glob_l['vertices'][0]
         left_dict = {
                 'vertices': left_verts.unsqueeze(0),
+                'joints': pred_glob_l['joints'][0].unsqueeze(0),
                 'faces': faces_left,
             }
 
-        R_x = torch.tensor([[1,  0,  0],
-                            [0, -1,  0],
-                            [0,  0, -1]]).float()
-        R_c2w_sla_all = torch.einsum('ij,njk->nik', R_x, R_c2w_sla_all)
-        t_c2w_sla_all = torch.einsum('ij,nj->ni', R_x, t_c2w_sla_all)
-        R_w2c_sla_all = R_c2w_sla_all.transpose(-1, -2)
-        t_w2c_sla_all = -torch.einsum("bij,bj->bi", R_w2c_sla_all, t_c2w_sla_all)
-        left_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, left_dict['vertices'].cpu())
-        right_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, right_dict['vertices'].cpu())
+        # R_x = torch.tensor([[1,  0,  0],
+        #                     [0, -1,  0],
+        #                     [0,  0, -1]]).float()
+        # R_c2w_sla_all = torch.einsum('ij,njk->nik', R_x, R_c2w_sla_all)
+        # t_c2w_sla_all = torch.einsum('ij,nj->ni', R_x, t_c2w_sla_all)
+        # R_w2c_sla_all = R_c2w_sla_all.transpose(-1, -2)
+        # t_w2c_sla_all = -torch.einsum("bij,bj->bi", R_w2c_sla_all, t_c2w_sla_all)
+        # left_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, left_dict['vertices'].cpu())
+        # right_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, right_dict['vertices'].cpu())
+        # left_dict['joints'] = torch.einsum('ij,btnj->btni', R_x, left_dict['joints'].cpu())
+        # right_dict['joints'] = torch.einsum('ij,btnj->btni', R_x, right_dict['joints'].cpu())
         
+        self.slam_path = slam_path
+        self.img_focal = img_focal
+        self.imgfiles = imgfiles
         
-        self.right_hand_vertices = pred_glob_r['vertices'].squeeze(0)
-        self.left_hand_vertices = pred_glob_l['vertices'].squeeze(0)
-        self.right_hand_joints = pred_glob_r['joints'].squeeze(0)
-        self.left_hand_joints = pred_glob_l['joints'].squeeze(0)
+        self.right_hand_vertices = right_dict['vertices'].squeeze(0)
+        self.left_hand_vertices = left_dict['vertices'].squeeze(0)
+        self.right_hand_joints = right_dict['joints'].squeeze(0)
+        self.left_hand_joints = left_dict['joints'].squeeze(0)
+        self.R_c2w_sla_all = R_c2w_sla_all
+        self.t_c2w_sla_all = t_c2w_sla_all
+        self.R_w2c_sla_all = R_w2c_sla_all
+        self.t_w2c_sla_all = t_w2c_sla_all
         self.right_faces = faces_right
         self.left_faces = faces_left

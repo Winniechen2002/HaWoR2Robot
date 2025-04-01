@@ -14,9 +14,6 @@ from lib.eval_utils.custom_utils import load_slam_cam
 from lib.vis.run_vis2 import run_vis2_on_video, run_vis2_on_video_cam
 
 
-
-        
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_focal", type=float)
@@ -24,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument("--input_type", type=str, default='file')
     parser.add_argument("--checkpoint",  type=str, default='./weights/hawor/checkpoints/hawor.ckpt')
     parser.add_argument("--infiller_weight",  type=str, default='./weights/hawor/checkpoints/infiller.pt')
+    parser.add_argument("--vis_mode",  type=str, default='world', help='cam | world')
     args = parser.parse_args()
 
     start_idx, end_idx, seq_folder, imgfiles = detect_track_video(args)
@@ -95,7 +93,20 @@ if __name__ == '__main__':
     left_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, left_dict['vertices'].cpu())
     right_dict['vertices'] = torch.einsum('ij,btnj->btni', R_x, right_dict['vertices'].cpu())
     
-    
-    import pdb; pdb.set_trace()
+    # Here we use aitviewer(https://github.com/eth-ait/aitviewer) for simple visualization.
+    if args.vis_mode == 'world': 
+        output_pth = os.path.join(seq_folder, f"vis_{vis_start}_{vis_end}")
+        if not os.path.exists(output_pth):
+            os.makedirs(output_pth)
+        image_names = imgfiles[vis_start:vis_end]
+        print(f"vis {vis_start} to {vis_end}")
+        run_vis2_on_video(left_dict, right_dict, output_pth, img_focal, image_names, R_c2w=R_c2w_sla_all[vis_start:vis_end], t_c2w=t_c2w_sla_all[vis_start:vis_end])
+    elif args.vis_mode == 'cam':
+        output_pth = os.path.join(seq_folder, f"vis_{vis_start}_{vis_end}")
+        if not os.path.exists(output_pth):
+            os.makedirs(output_pth)
+        image_names = imgfiles[vis_start:vis_end]
+        print(f"vis {vis_start} to {vis_end}")
+        run_vis2_on_video_cam(left_dict, right_dict, output_pth, img_focal, image_names, R_w2c=R_w2c_sla_all[vis_start:vis_end], t_w2c=t_w2c_sla_all[vis_start:vis_end])
 
-
+    print("finish")

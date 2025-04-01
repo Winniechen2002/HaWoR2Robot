@@ -14,6 +14,7 @@ from sapien.asset import create_dome_envmap
 from sapien.utils import Viewer
 from dataclasses import dataclass
 
+import genesis as gs
 
 def compute_smooth_shading_normal_np(vertices, indices):
     """
@@ -41,58 +42,105 @@ def compute_smooth_shading_normal_np(vertices, indices):
     return vertex_normal
 
 class HandViewer:
-    def __init__(self, data, headless=True, use_ray_tracing=False):
-        if not use_ray_tracing:
-            sapien.render.set_viewer_shader_dir("default")
-            sapien.render.set_camera_shader_dir("default")
-        else:
-            sapien.render.set_viewer_shader_dir("rt")
-            sapien.render.set_camera_shader_dir("rt")
-            sapien.render.set_ray_tracing_samples_per_pixel(64)
-            sapien.render.set_ray_tracing_path_depth(8)
-            sapien.render.set_ray_tracing_denoiser("oidn")
+    def __init__(self, data, headless=True, use_ray_tracing=False, simulator="sapien"):
+        self.simulator = simulator
+        
+        if simulator == "sapien":
+            if not use_ray_tracing:
+                sapien.render.set_viewer_shader_dir("default")
+                sapien.render.set_camera_shader_dir("default")
+            else:
+                sapien.render.set_viewer_shader_dir("rt")
+                sapien.render.set_camera_shader_dir("rt")
+                sapien.render.set_ray_tracing_samples_per_pixel(64)
+                sapien.render.set_ray_tracing_path_depth(8)
+                sapien.render.set_ray_tracing_denoiser("oidn")
 
-        # Scene
-        scene = sapien.Scene()
-        scene.set_timestep(1 / 240)
+            # Scene
+            scene = sapien.Scene()
+            scene.set_timestep(1 / 240)
 
-        # Lighting
-        scene.set_environment_map(create_dome_envmap(sky_color=[0.2, 0.2, 0.2], ground_color=[0.2, 0.2, 0.2]))
-        scene.add_directional_light(np.array([1, -1, -1]), np.array([2, 2, 2]), shadow=True)
-        scene.add_directional_light([0, 0, -1], [1.8, 1.6, 1.6], shadow=False)
-        scene.set_ambient_light(np.array([0.2, 0.2, 0.2]))
+            # Lighting
+            scene.set_environment_map(create_dome_envmap(sky_color=[0.2, 0.2, 0.2], ground_color=[0.2, 0.2, 0.2]))
+            scene.add_directional_light(np.array([1, -1, -1]), np.array([2, 2, 2]), shadow=True)
+            scene.add_directional_light([0, 0, -1], [1.8, 1.6, 1.6], shadow=False)
+            scene.set_ambient_light(np.array([0.2, 0.2, 0.2]))
 
-        # Add ground
-        visual_material = sapien.render.RenderMaterial()
-        visual_material.set_base_color(np.array([0.5, 0.5, 0.5, 1]))
-        visual_material.set_roughness(0.7)
-        visual_material.set_metallic(1)
-        visual_material.set_specular(0.04)
-        scene.add_ground(-1, render_material=visual_material)
+            # Add ground
+            visual_material = sapien.render.RenderMaterial()
+            visual_material.set_base_color(np.array([0.5, 0.5, 0.5, 1]))
+            visual_material.set_roughness(0.7)
+            visual_material.set_metallic(1)
+            visual_material.set_specular(0.04)
+            scene.add_ground(-1, render_material=visual_material)
 
-        # Viewer
-        if not headless:
-            viewer = Viewer()
-            viewer.set_scene(scene)
-            viewer.set_camera_xyz(1.5, 0, 1)
-            viewer.set_camera_rpy(0, -0.8, 3.14)
-            viewer.control_window.toggle_origin_frame(False)
-            self.viewer = viewer
-        else:
-            self.camera = scene.add_camera("cam", 1920, 640, 0.9, 0.01, 100)
-            self.camera.set_local_pose(sapien.Pose([1.5, 0, 1], [0, 0.389418, 0, -0.921061]))
+            # Viewer
+            if not headless:
+                viewer = Viewer()
+                viewer.set_scene(scene)
+                viewer.set_camera_xyz(1.5, 0, 1)
+                viewer.set_camera_rpy(0, -0.8, 3.14)
+                viewer.control_window.toggle_origin_frame(False)
+                self.viewer = viewer
+            else:
+                self.camera = scene.add_camera("cam", 960, 540, 0.9, 0.01, 100)
+                # self.camera.set_local_pose(sapien.Pose([1.5, 0, 2], [0, 0.389418, 0, -0.921061]))
 
-        self.headless = headless
+            self.headless = headless
 
-        # Caches
-        sapien.render.set_log_level("error")
-        self.scene = scene
-        self.internal_scene: R.Scene = scene.render_system._internal_scene
-        self.context: R.Context = sapien.render.SapienRenderer()._internal_context
-        self.mat_hand = self.context.create_material(np.zeros(4), np.array([0.96, 0.75, 0.69, 1]), 0.0, 0.8, 0)
+            # Caches
+            sapien.render.set_log_level("error")
+            self.scene = scene
+            self.internal_scene: R.Scene = scene.render_system._internal_scene
+            self.context: R.Context = sapien.render.SapienRenderer()._internal_context
+            self.mat_hand = self.context.create_material(np.zeros(4), np.array([0.96, 0.75, 0.69, 1]), 0.0, 0.8, 0)
 
-        self.objects: List[sapien.Entity] = []
-        self.nodes: List[R.Node] = []
+            self.objects: List[sapien.Entity] = []
+            self.nodes: List[R.Node] = []
+            
+        elif simulator == "Genesis": 
+            
+            self.headless = headless
+            
+            self.scene = gs.Scene(
+                viewer_options = gs.options.ViewerOptions(
+                    camera_pos    = (0, -3.5, 2.5),
+                    camera_lookat = (0.0, 0.0, 0.5),
+                    camera_fov    = 30,
+                    max_FPS       = 60,
+                ),
+                sim_options = gs.options.SimOptions(
+                    dt = 0.01,
+                ),
+                vis_options = gs.options.VisOptions(
+                    show_world_frame = False,
+                    # world_frame_size = 1.0,
+                    # show_link_frame  = False,
+                    # show_cameras     = False,
+                    # plane_reflection = True,
+                    # ambient_light    = (0.1, 0.1, 0.1),
+                ),
+                show_viewer = not headless,
+            )
+            
+            self.scene.add_entity(gs.morphs.URDF(file="urdf/plane/plane.urdf", pos = (0.0, 0.0, -1.0), fixed=True))
+            
+            if self.headless:
+                pred_cam = dict(np.load(data.slam_path, allow_pickle=True))
+                focal = pred_cam["img_focal"].item()   # e.g. 600
+                cx, cy = pred_cam["img_center"]       # e.g. (160, 160)
+
+                width = int(round(2 * cx))
+                height = int(round(2 * cy))
+                
+                fov = 2 * np.arctan(height / (2 * focal)) * 180 / np.pi
+
+                self.camera = self.scene.add_camera(
+                    res=(width, height),
+                    fov=fov,
+                    # GUI = True,
+                )
+            
         
         self.data = data
         self.right_hand_vertices = data.right_hand_vertices
@@ -101,6 +149,9 @@ class HandViewer:
         self.left_hand_joints = data.left_hand_joints
         self.right_faces = data.right_faces
         self.left_faces = data.left_faces
+        self.slam_path = data.slam_path
+        self.img_focal = data.img_focal
+        self.image = data.imgfiles
 
 
     def _update_right_hand(self, vertex):
